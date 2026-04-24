@@ -1,0 +1,217 @@
+================================================================================
+                    MINDFULCHAT - PROJECT EXPLANATION
+================================================================================
+
+PROJECT OVERVIEW
+----------------
+MindfulChat is a mental health support chatbot that provides empathetic, 
+AI-powered conversations to help users with their mental wellness journey.
+The application features secure user authentication, persistent chat history,
+and text-to-speech functionality for accessibility.
+
+================================================================================
+
+CORE COMPONENTS
+---------------
+
+1. AUTHENTICATION SYSTEM
+   - Secure signup with email, password, and name
+   - Login with email/password validation
+   - Passwords hashed using bcrypt (10 rounds)
+   - JWT-based sessions stored in HTTP-only cookies
+   - Sessions expire after 24 hours
+   - Protected routes redirect unauthenticated users
+
+2. LOCAL DATABASE
+   - JSON file-based storage (data/database.json)
+   - No external database required
+   - Automatic initialization with demo users
+   - Full CRUD operations supported
+   
+3. AI CHATBOT
+   - Powered by Perplexity Sonar API
+   - Specialized mental health system prompt
+   - Concise, supportive responses
+   - Reference numbers automatically removed
+   - Context-aware conversations
+
+4. TEXT-TO-SPEECH (TTS)
+   - Uses Web Speech API (browser-native)
+   - Click speaker icon to hear responses
+   - Adjustable rate and pitch
+   - Stop/resume functionality
+
+================================================================================
+
+DEMO ACCOUNTS
+-------------
+
+Account 1:
+  Email:    demo@example.com
+  Password: demo123
+  Name:     Demo User
+
+Account 2:
+  Email:    test@example.com
+  Password: test123
+  Name:     Test User
+
+================================================================================
+
+DATABASE SCHEMA
+---------------
+
+USERS TABLE:
+  - id: number (auto-increment)
+  - email: string (unique)
+  - password: string (bcrypt hashed)
+  - name: string
+  - created_at: ISO date string
+
+CHAT_HISTORY TABLE:
+  - id: number (auto-increment)
+  - user_id: number (foreign key to users)
+  - message: string (user's message)
+  - response: string (AI response)
+  - created_at: ISO date string
+
+================================================================================
+
+CRUD OPERATIONS
+---------------
+
+USER OPERATIONS:
+  Create:  createUser(email, password, name)
+  Read:    getUserByEmail(email), getUserById(id)
+  Update:  updateUser(id, {name?, email?})
+  Delete:  deleteUser(id)
+
+CHAT OPERATIONS:
+  Create:  createChatMessage(userId, message, response)
+  Read:    getChatHistory(userId, limit)
+  Delete:  deleteChatMessage(id, userId), clearChatHistory(userId)
+
+================================================================================
+
+API ENDPOINTS
+-------------
+
+AUTHENTICATION:
+  POST /api/auth/signup
+    Body: { email, password, name }
+    Response: { success, user }
+
+  POST /api/auth/login
+    Body: { email, password }
+    Response: { success, user }
+
+  POST /api/auth/logout
+    Response: { success }
+
+  GET /api/auth/session
+    Response: { user } or { user: null }
+
+CHAT:
+  POST /api/chat
+    Body: { message }
+    Response: { response }
+
+  GET /api/chat/history
+    Response: { history: [...] }
+
+  DELETE /api/chat/history
+    Response: { success }
+
+================================================================================
+
+TECHNOLOGY STACK
+----------------
+
+Frontend:
+  - Next.js 16 (App Router)
+  - React 19
+  - Tailwind CSS
+  - shadcn/ui components
+  - Lucide React icons
+
+Backend:
+  - Next.js API Routes
+  - JWT sessions (jose library)
+  - bcryptjs for password hashing
+
+AI Integration:
+  - Perplexity Sonar API
+  - Model: sonar-reasoning
+  - Streaming disabled for simplicity
+
+Storage:
+  - JSON file-based database
+  - Filesystem persistence
+
+================================================================================
+
+ENVIRONMENT VARIABLES
+---------------------
+
+Required:
+  PERPLEXITY_API_KEY  - Your Perplexity API key
+  SESSION_SECRET      - Random string for JWT signing
+
+Get Perplexity API key: https://www.perplexity.ai/settings/api
+
+================================================================================
+
+FILE STRUCTURE
+--------------
+
+/app
+  /api/auth/login/route.ts    - Login endpoint
+  /api/auth/logout/route.ts   - Logout endpoint
+  /api/auth/signup/route.ts   - Registration endpoint
+  /api/auth/session/route.ts  - Session check endpoint
+  /api/chat/route.ts          - Chat with AI endpoint
+  /api/chat/history/route.ts  - Chat history endpoint
+  /chat/page.tsx              - Protected chat page
+  /login/page.tsx             - Login form
+  /signup/page.tsx            - Registration form
+  /page.tsx                   - Landing page
+  /layout.tsx                 - Root layout
+  /globals.css                - Global styles
+
+/components
+  /chat-interface.tsx         - Chat UI with TTS
+  /chat-header.tsx            - Header component
+
+/lib
+  /db.ts                      - Database operations
+  /session.ts                 - JWT session handling
+
+/data
+  /database.json              - Data storage file
+
+================================================================================
+
+SECURITY CONSIDERATIONS
+-----------------------
+
+1. Passwords are never stored in plain text
+2. Sessions use HTTP-only cookies (not accessible via JavaScript)
+3. JWT tokens expire after 24 hours
+4. Protected routes validate sessions server-side
+5. Input validation on all API endpoints
+
+================================================================================
+
+MENTAL HEALTH DISCLAIMER
+------------------------
+
+This chatbot is designed for general mental wellness support and educational
+purposes only. It is NOT a substitute for professional mental health care,
+diagnosis, or treatment.
+
+If you are experiencing a mental health crisis, please:
+  - Contact a mental health professional
+  - Call a crisis helpline
+  - Go to your nearest emergency room
+
+================================================================================
