@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Send, Volume2, VolumeX, Loader2, Trash2, ArrowLeft, Stethoscope, User } from "lucide-react";
+import { Send, Volume2, VolumeX, Loader2, Trash2, ArrowLeft, Stethoscope, User, Mic, MicOff } from "lucide-react";
 import { ChatMode, getModeWelcome, getModeConfig } from "@/lib/chat-modes";
 import { useRouter } from "next/navigation";
 
@@ -27,17 +27,50 @@ export function ChatInterface({ userName, mode }: ChatInterfaceProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [speakingId, setSpeakingId] = useState<number | null>(null);
+  const [isListening, setIsListening] = useState(false);
+  const [voiceSupported, setVoiceSupported] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const synthRef = useRef<SpeechSynthesis | null>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
 
   useEffect(() => {
     synthRef.current = window.speechSynthesis;
     // Clear any stale messages when component mounts
     setMessages([]);
     
+    // Initialize speech recognition
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      setVoiceSupported(true);
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+      
+      recognition.onresult = (event) => {
+        const transcript = Array.from(event.results)
+          .map((result) => result[0].transcript)
+          .join('');
+        setInput(transcript);
+      };
+      
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+      
+      recognition.onerror = () => {
+        setIsListening(false);
+      };
+      
+      recognitionRef.current = recognition;
+    }
+    
     return () => {
       if (synthRef.current) {
         synthRef.current.cancel();
+      }
+      if (recognitionRef.current) {
+        recognitionRef.current.abort();
       }
     };
   }, []);
@@ -101,6 +134,19 @@ export function ChatInterface({ userName, mode }: ChatInterfaceProps) {
       synthRef.current.cancel();
       setIsSpeaking(false);
       setSpeakingId(null);
+    }
+  };
+
+  const toggleListening = () => {
+    if (!recognitionRef.current) return;
+    
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      setInput('');
+      recognitionRef.current.start();
+      setIsListening(true);
     }
   };
 
@@ -288,10 +334,26 @@ export function ChatInterface({ userName, mode }: ChatInterfaceProps) {
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Share what is on your mind..."
-            disabled={isLoading}
-            className="flex-1 border-slate-200 focus:border-teal-400 focus:ring-teal-400"
+            placeholder={isListening ? "Listening... speak now" : "Share what is on your mind..."}
+            disabled={isLoading || isListening}
+            className={`flex-1 border-slate-200 focus:border-teal-400 focus:ring-teal-400 ${
+              isListening ? "bg-red-50 border-red-300 animate-pulse" : ""
+            }`}
           />
+          {voiceSupported && (
+            <Button
+              type="button"
+              onClick={toggleListening}
+              disabled={isLoading}
+              variant={isListening ? "destructive" : "outline"}
+              className={isListening 
+                ? "bg-red-500 hover:bg-red-600 text-white animate-pulse" 
+                : "border-slate-200 hover:bg-slate-100"
+              }
+            >
+              {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+            </Button>
+          )}
           <Button
             type="submit"
             disabled={isLoading || !input.trim()}
@@ -301,7 +363,10 @@ export function ChatInterface({ userName, mode }: ChatInterfaceProps) {
           </Button>
         </div>
         <p className="text-xs text-slate-400 mt-2 text-center">
-          Dr. Aria is an AI companion. For emergencies, contact professional help or call 988.
+          {isListening 
+            ? "Speak clearly into your microphone. Click the mic button again to stop." 
+            : "Dr. Aria is an AI companion. For emergencies, contact professional help or call 988."
+          }
         </p>
       </form>
     </div>
