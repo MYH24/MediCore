@@ -22,8 +22,15 @@
       "message": "hello",
       "response": "I hear you're reaching out with a simple hello, and I'm grateful you've chosen to connect. That opens the door to sharing whatever is on your mind today. What would feel supportive for you right now?",
       "created_at": "2026-04-24T04:03:31.627Z"
+    },
+    {
+      "id": 2,
+      "user_id": 1,
+      "message": "i am depressed",
+      "response": "I hear that you're feeling depressed, and it takes real strength to reach out about it. That sounds incredibly heavy to carry, and you're not alone in this. What has been the hardest part for you lately, or would you like to talk about how it's affecting your days?",
+      "created_at": "2026-04-24T04:09:01.054Z"
     }
   ],
   "nextUserId": 3,
-  "nextChatId": 2
+  "nextChatId": 3
 }

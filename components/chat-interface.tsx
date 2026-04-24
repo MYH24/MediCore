@@ -32,7 +32,8 @@ export function ChatInterface({ userName, mode }: ChatInterfaceProps) {
 
   useEffect(() => {
     synthRef.current = window.speechSynthesis;
-    loadHistory();
+    // Clear any stale messages when component mounts
+    setMessages([]);
     
     return () => {
       if (synthRef.current) {
@@ -49,28 +50,7 @@ export function ChatInterface({ userName, mode }: ChatInterfaceProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const loadHistory = async () => {
-    try {
-      const token = sessionStorage.getItem("session_token");
-      const headers: Record<string, string> = {};
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
-      }
-      const res = await fetch("/api/chat/history", { headers });
-      const data = await res.json();
-      if (data.history) {
-        const formattedMessages: Message[] = [];
-        let id = 1;
-        data.history.forEach((item: { message: string; response: string }) => {
-          formattedMessages.push({ id: id++, role: "user", content: item.message });
-          formattedMessages.push({ id: id++, role: "assistant", content: item.response });
-        });
-        setMessages(formattedMessages);
-      }
-    } catch (error) {
-      console.error("Failed to load history:", error);
-    }
-  };
+
 
   const speak = (text: string, messageId: number) => {
     if (!synthRef.current) return;
@@ -140,15 +120,9 @@ export function ChatInterface({ userName, mode }: ChatInterfaceProps) {
     setIsLoading(true);
 
     try {
-      const token = sessionStorage.getItem("session_token");
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
-      }
-      
       const res = await fetch("/api/chat", {
         method: "POST",
-        headers,
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: userMessage, mode }),
       });
 
@@ -177,19 +151,9 @@ export function ChatInterface({ userName, mode }: ChatInterfaceProps) {
     }
   };
 
-  const clearHistory = async () => {
-    try {
-      const token = sessionStorage.getItem("session_token");
-      const headers: Record<string, string> = {};
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
-      }
-      await fetch("/api/chat/history", { method: "DELETE", headers });
-      setMessages([]);
-      stopSpeaking();
-    } catch (error) {
-      console.error("Failed to clear history:", error);
-    }
+  const clearHistory = () => {
+    setMessages([]);
+    stopSpeaking();
   };
 
   const welcomeMessage = getModeWelcome(mode);

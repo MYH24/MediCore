@@ -1,6 +1,4 @@
 import bcrypt from 'bcryptjs';
-import fs from 'fs';
-import path from 'path';
 
 interface User {
   id: number;
@@ -25,59 +23,40 @@ interface Database {
   nextChatId: number;
 }
 
-const dataDir = path.join(process.cwd(), 'data');
-const dbPath = path.join(dataDir, 'database.json');
+// In-memory database for serverless environments
+let inMemoryDb: Database | null = null;
 
-function ensureDataDir() {
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
+function getDatabase(): Database {
+  if (!inMemoryDb) {
+    // Initialize with demo users
+    inMemoryDb = {
+      users: [
+        {
+          id: 1,
+          email: 'demo@example.com',
+          password: bcrypt.hashSync('demo123', 10),
+          name: 'Demo User',
+          created_at: new Date().toISOString(),
+        },
+        {
+          id: 2,
+          email: 'test@example.com',
+          password: bcrypt.hashSync('test123', 10),
+          name: 'Test User',
+          created_at: new Date().toISOString(),
+        },
+      ],
+      chat_history: [],
+      nextUserId: 3,
+      nextChatId: 1,
+    };
   }
-}
-
-function loadDatabase(): Database {
-  ensureDataDir();
-  try {
-    if (fs.existsSync(dbPath)) {
-      const data = fs.readFileSync(dbPath, 'utf-8');
-      return JSON.parse(data);
-    }
-  } catch {
-    // If file is corrupted, start fresh
-  }
-  // Initialize with demo users
-  const demoDb: Database = {
-    users: [
-      {
-        id: 1,
-        email: 'demo@example.com',
-        password: bcrypt.hashSync('demo123', 10),
-        name: 'Demo User',
-        created_at: new Date().toISOString(),
-      },
-      {
-        id: 2,
-        email: 'test@example.com',
-        password: bcrypt.hashSync('test123', 10),
-        name: 'Test User',
-        created_at: new Date().toISOString(),
-      },
-    ],
-    chat_history: [],
-    nextUserId: 3,
-    nextChatId: 1,
-  };
-  saveDatabase(demoDb);
-  return demoDb;
-}
-
-function saveDatabase(db: Database) {
-  ensureDataDir();
-  fs.writeFileSync(dbPath, JSON.stringify(db, null, 2));
+  return inMemoryDb;
 }
 
 // User CRUD operations
 export function createUser(email: string, password: string, name: string) {
-  const db = loadDatabase();
+  const db = getDatabase();
   
   // Check if email already exists
   if (db.users.find(u => u.email === email)) {
@@ -94,18 +73,17 @@ export function createUser(email: string, password: string, name: string) {
   };
   
   db.users.push(newUser);
-  saveDatabase(db);
   
   return { id: newUser.id, email: newUser.email, name: newUser.name };
 }
 
 export function getUserByEmail(email: string) {
-  const db = loadDatabase();
+  const db = getDatabase();
   return db.users.find(u => u.email === email);
 }
 
 export function getUserById(id: number) {
-  const db = loadDatabase();
+  const db = getDatabase();
   const user = db.users.find(u => u.id === id);
   if (user) {
     const { password, ...userWithoutPassword } = user;
@@ -115,7 +93,7 @@ export function getUserById(id: number) {
 }
 
 export function updateUser(id: number, data: { name?: string; email?: string }) {
-  const db = loadDatabase();
+  const db = getDatabase();
   const userIndex = db.users.findIndex(u => u.id === id);
   
   if (userIndex === -1) return null;
@@ -130,12 +108,11 @@ export function updateUser(id: number, data: { name?: string; email?: string }) 
     db.users[userIndex].email = data.email;
   }
   
-  saveDatabase(db);
   return getUserById(id);
 }
 
 export function deleteUser(id: number) {
-  const db = loadDatabase();
+  const db = getDatabase();
   const userIndex = db.users.findIndex(u => u.id === id);
   
   if (userIndex === -1) return { changes: 0 };
@@ -143,7 +120,6 @@ export function deleteUser(id: number) {
   db.users.splice(userIndex, 1);
   // Also delete user's chat history
   db.chat_history = db.chat_history.filter(c => c.user_id !== id);
-  saveDatabase(db);
   
   return { changes: 1 };
 }
@@ -154,7 +130,7 @@ export function verifyPassword(plainPassword: string, hashedPassword: string) {
 
 // Chat history CRUD operations
 export function createChatMessage(userId: number, message: string, response: string) {
-  const db = loadDatabase();
+  const db = getDatabase();
   
   const newMessage: ChatMessage = {
     id: db.nextChatId++,
@@ -165,13 +141,12 @@ export function createChatMessage(userId: number, message: string, response: str
   };
   
   db.chat_history.push(newMessage);
-  saveDatabase(db);
   
   return { id: newMessage.id, userId, message, response };
 }
 
 export function getChatHistory(userId: number, limit = 50) {
-  const db = loadDatabase();
+  const db = getDatabase();
   return db.chat_history
     .filter(c => c.user_id === userId)
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
@@ -179,17 +154,15 @@ export function getChatHistory(userId: number, limit = 50) {
 }
 
 export function deleteChatMessage(id: number, userId: number) {
-  const db = loadDatabase();
+  const db = getDatabase();
   const initialLength = db.chat_history.length;
   db.chat_history = db.chat_history.filter(c => !(c.id === id && c.user_id === userId));
-  saveDatabase(db);
   return { changes: initialLength - db.chat_history.length };
 }
 
 export function clearChatHistory(userId: number) {
-  const db = loadDatabase();
+  const db = getDatabase();
   const initialLength = db.chat_history.length;
   db.chat_history = db.chat_history.filter(c => c.user_id !== userId);
-  saveDatabase(db);
   return { changes: initialLength - db.chat_history.length };
 }

@@ -1,6 +1,4 @@
 import { NextResponse } from 'next/server';
-import { getSession, decrypt } from '@/lib/session';
-import { createChatMessage } from '@/lib/db';
 import { getModePrompt, ChatMode } from '@/lib/chat-modes';
 
 function cleanResponse(text: string): string {
@@ -30,7 +28,10 @@ function cleanResponse(text: string): string {
   cleaned = cleaned.replace(/^[\s]*\d+\.\s+/gm, '');
   
   // Remove informal greetings at the start
-  cleaned = cleaned.replace(/^(Hi|Hey|Hello|Hello there|Hi there)[,!.]?\s*/i, '');
+  cleaned = cleaned.replace(/^(Hi|Hey|Hello|Hello there|Hi there)[,!.\s]*/i, '');
+  
+  // Remove quotes around text
+  cleaned = cleaned.replace(/^["']|["']$/g, '');
   
   // Clean up extra whitespace and punctuation
   cleaned = cleaned.replace(/\s+/g, ' ');
@@ -46,19 +47,8 @@ function cleanResponse(text: string): string {
 
 export async function POST(request: Request) {
   try {
-    // Try to get session from cookie first
-    let session = await getSession();
-    
-    // Fallback: check Authorization header
-    if (!session) {
-      const authHeader = request.headers.get('Authorization');
-      if (authHeader?.startsWith('Bearer ')) {
-        const token = authHeader.substring(7);
-        session = await decrypt(token);
-      }
-    }
-
     const { message, mode = 'general' } = await request.json();
+    
     if (!message) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 });
     }
@@ -104,11 +94,6 @@ export async function POST(request: Request) {
     
     // Clean the response thoroughly
     const cleanedResponse = cleanResponse(rawResponse);
-
-    // Save to chat history if user is authenticated
-    if (session) {
-      createChatMessage(session.userId, message, cleanedResponse);
-    }
 
     return NextResponse.json({ response: cleanedResponse });
   } catch (error) {
